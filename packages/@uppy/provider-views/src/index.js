@@ -41,7 +41,8 @@ module.exports = class ProviderView {
   static VERSION = require('../package.json').version
 
   /**
-   * @param {object} instance of the plugin
+   * @param {object} plugin instance of the plugin
+   * @param {object} opts
    */
   constructor (plugin, opts) {
     this.plugin = plugin
@@ -200,9 +201,17 @@ module.exports = class ProviderView {
    * Removes session token on client side.
    */
   logout () {
-    this.provider.logout(location.href)
+    this.provider.logout()
       .then((res) => {
         if (res.ok) {
+          if (!res.revoked) {
+            const message = this.plugin.uppy.i18n('companionUnauthorizeHint', {
+              provider: this.plugin.title,
+              url: res.manual_revoke_url
+            })
+            this.plugin.uppy.info(message, 'info', 7000)
+          }
+
           const newState = {
             authenticated: false,
             files: [],
@@ -554,7 +563,7 @@ module.exports = class ProviderView {
     this.plugin.setPluginState({ loading: true })
   }
 
-  render (state) {
+  render (state, viewOptions = {}) {
     const { authenticated, didFirstRender } = this.plugin.getPluginState()
     if (!didFirstRender) {
       this.preFirstRender()
@@ -578,11 +587,13 @@ module.exports = class ProviderView {
             pluginIcon={this.plugin.icon}
             handleAuth={this.handleAuth}
             i18n={this.plugin.uppy.i18n}
-            i18nArray={this.plugin.uppy.i18nArray} />
+            i18nArray={this.plugin.uppy.i18nArray}
+          />
         </CloseWrapper>
       )
     }
 
+    const targetViewOptions = { ...this.opts, ...viewOptions }
     const browserProps = Object.assign({}, this.plugin.getPluginState(), {
       username: this.username,
       getNextFolder: this.getNextFolder,
@@ -601,10 +612,10 @@ module.exports = class ProviderView {
       done: this.donePicking,
       cancel: this.cancelPicking,
       title: this.plugin.title,
-      viewType: this.opts.viewType,
-      showTitles: this.opts.showTitles,
-      showFilter: this.opts.showFilter,
-      showBreadcrumbs: this.opts.showBreadcrumbs,
+      viewType: targetViewOptions.viewType,
+      showTitles: targetViewOptions.showTitles,
+      showFilter: targetViewOptions.showFilter,
+      showBreadcrumbs: targetViewOptions.showBreadcrumbs,
       pluginIcon: this.plugin.icon,
       i18n: this.plugin.uppy.i18n
     })

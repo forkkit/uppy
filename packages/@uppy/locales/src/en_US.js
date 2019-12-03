@@ -16,6 +16,7 @@ en_US.strings = {
   closeModal: 'Close Modal',
   companionAuthError: 'Authorization required',
   companionError: 'Connection with Companion failed',
+  companionUnauthorizeHint: 'To unauthorize to your %{provider} account, please go to %{url}',
   complete: 'Complete',
   connectedToInternet: 'Connected to the Internet',
   copyLink: 'Copy link',
@@ -74,6 +75,7 @@ en_US.strings = {
     '1': 'Processing %{smart_count} files',
     '2': 'Processing %{smart_count} files'
   },
+  recordingLength: 'Recording length %{recording_length}',
   removeFile: 'Remove file',
   resetFilter: 'Reset filter',
   resume: 'Resume',
