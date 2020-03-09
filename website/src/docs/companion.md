@@ -199,6 +199,10 @@ export COMPANION_AWS_BUCKET="YOUR AWS S3 BUCKET"
 export COMPANION_AWS_REGION="AWS REGION"
 # to enable S3 Transfer Acceleration (default: false)
 export COMPANION_AWS_USE_ACCELERATE_ENDPOINT="false"
+# to set X-Amz-Expires query param in presigned urls (in seconds, default: 300)
+export COMPANION_AWS_EXPIRES="300"
+# to set a canned ACL for uploaded objects: https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl
+export COMPANION_AWS_ACL="public-read"
 
 # corresponds to the server.oauthDomain option
 export COMPANION_OAUTH_DOMAIN="sub.domain.com"
@@ -241,12 +245,14 @@ See [env.example.sh](https://github.com/transloadit/uppy/blob/master/env.example
       secret: "***"
     },
     s3: {
-      getKey: (req, filename) => filename,
+      getKey: (req, filename, metadata) => filename,
       key: "***",
       secret: "***",
       bucket: "bucket-name",
       region: "us-east-1",
-      useAccelerateEndpoint: false // default: false
+      useAccelerateEndpoint: false, // default: false,
+      expires: 3600, // default: 300 (5 minutes)
+      acl: "private" // default: public-read
     }
   },
   server: {
@@ -290,23 +296,62 @@ See [env.example.sh](https://github.com/transloadit/uppy/blob/master/env.example
 
 ### S3 options
 
-The S3 uploader has some options in addition to the ones necessary for authentication.
+Companion comes with signature endpoints for AWS S3. These can be used by the Uppy client to sign requests to upload files directly to S3, without exposing secret S3 keys in the browser. Companion also supports uploading files from providers like Dropbox and Instagram directly into S3.
 
-#### `s3.getKey(req, filename)`
+The S3 features can be configured using the `providerOptions.s3` property.
 
-Get the key name for a file. The key is the file path to which the file will be uploaded in your bucket. This option should be a function receiving two arguments: `req`, the HTTP request, and the original `filename` of the uploaded file. It should return a string `key`. The `req` parameter can be used to upload to a user-specific folder in your bucket, for example:
+#### `providerOptions.s3.key`
+
+The S3 access key ID. The standalone Companion server populates this with the value of the `COMPANION_AWS_KEY` environment variable by default.
+
+#### `providerOptions.s3.secret`
+
+The S3 secret access key. The standalone Companion server populates this with the value of the `COMPANION_AWS_SECRET` environment variable by default.
+
+#### `providerOptions.s3.bucket`
+
+The name of the bucket to store uploaded files in. The standalone Companion server populates this with the value of the `COMPANION_AWS_BUCKET` environment variable by default.
+
+#### `providerOptions.s3.region`
+
+The datacenter region where the target bucket is located. The standalone Companion server populates this with the value of the `COMPANION_AWS_REGION` environment variable by default.
+
+#### `providerOptions.s3.awsClientOptions`
+
+You can supply any [S3 option supported by the AWS SDK](https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#constructor-property) in the `providerOptions.s3.awsClientOptions` object, _except for_ the below:
+
+- `accessKeyId`. Instead, use the `providerOptions.s3.key` property. This is to make configuration names consistent between different Companion features.
+- `secretAccessKey`. Instead, use the `providerOptions.s3.secret` property. This is to make configuration names consistent between different Companion features.
+
+Be aware that some options may cause wrong behaviour if they conflict with Companion's assumptions. If you find that a particular option does not work as expected, please [open an issue on the Uppy repository](https://github.com/transloadit/uppy/issues/new) so we can document it here.
+
+#### `providerOptions.s3.getKey(req, filename, metadata)`
+
+Get the key name for a file. The key is the file path to which the file will be uploaded in your bucket. This option should be a function receiving three arguments:
+- `req`, the HTTP request, for _regular_ S3 uploads using the `@uppy/aws-s3` plugin. This parameter is _not_ available for multipart uploads using the `@uppy/aws-s3-multipart` plugin;
+- `filename`, the original name of the uploaded file;
+- `metadata`, user-provided metadata for the file. See the [`@uppy/aws-s3`](https://uppy.io/docs/aws-s3/#metaFields) docs. Currently, the `@uppy/aws-s3-multipart` plugin unconditionally sends all metadata fields, so all of them are available here.
+
+This function should return a string `key`. The `req` parameter can be used to upload to a user-specific folder in your bucket, for example:
 
 ```js
 app.use(authenticationMiddleware)
 app.use(uppy.app({
-  s3: {
-    getKey: (req, filename) => `${req.user.id}/${filename}`,
-    /* auth options */
+  providerOptions: {
+    s3: {
+      getKey: (req, filename, metadata) => `${req.user.id}/${filename}`,
+      /* auth options */
+    }
   }
 }))
 ```
 
-The default value simply returns `filename`, so all files will be uploaded to the root of the bucket as their original file name.
+The default implementation returns the `filename`, so all files will be uploaded to the root of the bucket as their original file name.
+```js
+({
+  getKey: (req, filename, metadata) => filename
+})
+```
 
 ### Running in Kubernetes
 

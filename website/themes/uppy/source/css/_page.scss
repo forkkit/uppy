@@ -363,7 +363,7 @@
   overflow: visible;
 }
 .page-docs-locales .highlight table {
-  overflow: scroll;
+  overflow: auto;
 }
 .page-docs-locales table td {
   white-space: nowrap;
@@ -381,6 +381,12 @@
 .page-support table tr:first-child td {
   white-space: nowrap;
   font-size: 90%;
+}
+
+// Privacy policy table overrides
+
+.page-privacy table td {
+  padding: 8px 0;
 }
 
 // Plugin list
